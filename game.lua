@@ -34,65 +34,6 @@ task.spawn(function()
 end)
 
 -- =========================
--- FPS & Ping Display (Top-left corner)
--- =========================
-local gui = Instance.new("ScreenGui")
-gui.Name = "InfoGui"
-gui.ResetOnSpawn = false
-gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-
-local label = Instance.new("TextLabel")
-label.Size = UDim2.new(0, 200, 0, 50)
-label.Position = UDim2.new(0, 10, 0, 10)
-label.AnchorPoint = Vector2.new(0, 0)
-label.BackgroundTransparency = 0.5
-label.BackgroundColor3 = Color3.new(0, 0, 0)
-label.TextColor3 = Color3.new(1, 1, 1)
-label.TextStrokeTransparency = 0.5
-label.Font = Enum.Font.SourceSansBold
-label.TextSize = 18
-label.Parent = gui
-
-local frameCount = 0
-local lastTime = os.clock()
-local fpsValue = 0
-
-local pingStat = Stats:FindFirstChild("PerformanceStats") or Stats
-local pingItem = pingStat:FindFirstChild("Ping")
-if not pingItem then
-    local networkStats = Stats:FindFirstChild("Network")
-    if networkStats then
-        pingItem = networkStats:FindFirstChild("ServerStatsItem") and networkStats.ServerStatsItem:FindFirstChild("Data Ping")
-    end
-end
-
-RunService.RenderStepped:Connect(function()
-    frameCount += 1
-    local now = os.clock()
-    local elapsed = now - lastTime
-    if elapsed >= 0.5 then
-        fpsValue = math.floor(frameCount / elapsed + 0.5)
-        frameCount = 0
-        lastTime = now
-    end
-
-    local ping = "N/A"
-    if pingItem then
-        local val = pingItem:GetValue()
-        if val then
-            ping = math.floor(val)
-        end
-    else
-        local playerPing = LocalPlayer:GetNetworkPing()
-        if playerPing then
-            ping = math.floor(playerPing * 1000) -- seconds to ms
-        end
-    end
-
-    label.Text = string.format("FPS: %d | Ping: %s ms", fpsValue, tostring(ping))
-end)
-
--- =========================
 -- Food equip cycle
 -- =========================
 task.spawn(function()
@@ -132,11 +73,11 @@ LocalPlayer.Idled:Connect(function()
 end)
 
 -- =========================
--- Auto Rejoin System (Safe)
+-- Auto Rejoin System (Improved)
 -- =========================
 local MAX_RETRIES = 5
-local RETRY_DELAY = 10
-local RECONNECT_COOLDOWN = 60  -- 1 minute
+local RETRY_DELAY = 3               -- Retry every 3 seconds
+local RECONNECT_COOLDOWN = 60       -- 1 minute cooldown after 5 failures
 
 local retryCount = 0
 local lastReconnectTime = 0
@@ -157,6 +98,7 @@ local function safeRejoin()
     lastReconnectTime = currentTime
     retryCount = 0
 
+    -- First attempt is immediate, then retries every RETRY_DELAY seconds
     while retryCount < MAX_RETRIES do
         retryCount += 1
         pcall(function()
@@ -168,7 +110,7 @@ local function safeRejoin()
     retryCount = 0
 end
 
--- Trigger on teleport failure
+-- Trigger on teleport failure (immediate rejoin)
 LocalPlayer.OnTeleport:Connect(function(teleportState)
     if teleportState == Enum.TeleportState.Failed then
         safeRejoin()
